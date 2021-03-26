@@ -1937,7 +1937,7 @@ class BertForQuestionAnsweringSeqSC(BertPreTrainedModel):
 
 class BertForQuestionAnsweringSeqSCAVPooler(BertPreTrainedModel):
     def __init__(self, config):
-        super(BertForQuestionAnsweringSeqSC, self).__init__(config)
+        super(BertForQuestionAnsweringSeqSCAVPooler, self).__init__(config)
         self.num_labels = config.num_labels
         self.bert = BertModel(config)
         self.attention = SCAttention(config.hidden_size, config.hidden_size)
