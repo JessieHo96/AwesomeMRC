@@ -76,7 +76,7 @@ if is_torch_available():
     from .modeling_utils import (PreTrainedModel, prune_layer, Conv1D)
     from .modeling_auto import (AutoModel, AutoModelForSequenceClassification, AutoModelForQuestionAnswering,
                                 AutoModelWithLMHead, AutoModelForTokenClassification, ALL_PRETRAINED_MODEL_ARCHIVE_MAP)
-
+    from .modeling_spanbert import SpanBertForQuestionAnsweringAVPooler
     from .modeling_bert import (BertPreTrainedModel, BertModel, BertForPreTraining,
                                 BertForMaskedLM, BertForNextSentencePrediction,
                                 BertForSequenceClassification, BertForMultipleChoice,
