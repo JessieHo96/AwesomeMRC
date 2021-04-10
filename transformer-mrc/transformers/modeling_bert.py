@@ -2040,7 +2040,7 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
 
     """
     def __init__(self, config):
-        super(BertForQuestionAnswering, self).__init__(config)
+        super(BertForQuestionAnsweringGateMechanism, self).__init__(config)
         self.num_labels = config.num_labels
 
         self.bert = BertModel(config)
