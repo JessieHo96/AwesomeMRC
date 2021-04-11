@@ -2067,14 +2067,16 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
         batch_size = final_hidden_size[0]
         sequence_length = final_hidden_size[1]
         hidden_size = self.config.hidden_size
+        
+        device = input_ids.device if input_ids is not None else inputs_embeds.device
 
         ##Branch 1:
         #[2, hidden_size]
-        branch_weights_1 = torch.empty(2, self.config.hidden_size, requires_grad = True)
+        branch_weights_1 = torch.empty(2, self.config.hidden_size, requires_grad = True, device = device)
         torch.nn.init.normal_(branch_weights_1, std = 0.02)
 
         #[2]
-        branch_bias_1 = torch.empty(2)
+        branch_bias_1 = torch.empty(2, device = device)
         torch.nn.init.zeros_(branch_bias_1)
 
         #[batch_size*sequence_length, hidden_size]
@@ -2082,17 +2084,17 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
 
 
         #[2, hidden_size] * [hidden_size,batch_size*sequence_length] = [2, batch_size*sequence_length]
-        logits_1 = torch.matmul(branch_weights_1, final_hidden_reshape.transpose(1,0))
+        logits_1 = torch.bmm(branch_weights_1, final_hidden_reshape.transpose(1,0))
         logits_1 = torch.add(branch_bias_1, logits_1) #[2, batch_size*sequence_length]
         logits_1 = torch.nn.Relu(logits_1)
 
          ##Branch 2:
         #[2, hidden_size]
-        branch_weights_2 = torch.empty(2, self.config.hidden_size, requires_grad = True)
+        branch_weights_2 = torch.empty(2, self.config.hidden_size, requires_grad = True, device= device)
         torch.nn.init.normal_(branch_weights_2, std = 0.02)
 
         #[2]
-        branch_bias_2 = torch.empty(2)
+        branch_bias_2 = torch.empty(2, device=device)
         torch.nn.init.zeros_(branch_bias_2)
 
         #[batch_size*sequence_length, hidden_size]
@@ -2100,7 +2102,7 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
 
 
         #[2, hidden_size] * [hidden_size,batch_size*sequence_length] = [2, batch_size*sequence_length]
-        logits_2 = torch.matmul(branch_weights_2, final_hidden_reshape.transpose(1,0))
+        logits_2 = torch.bmm(branch_weights_2, final_hidden_reshape.transpose(1,0))
         logits_2 = torch.add(branch_bias_2, logits_2) #[2, batch_size*sequence_length]
         logits_2 = torch.nn.tanh(logits_2)
 
