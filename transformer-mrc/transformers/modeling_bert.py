@@ -2047,6 +2047,7 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
     #     self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)
 
         self.init_weights()
+        self.config = config
 
     def forward(self, input_ids=None, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None, inputs_embeds=None,
                 start_positions=None, end_positions=None):
@@ -2065,11 +2066,11 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
         final_hidden_size = sequence_output.size()
         batch_size = final_hidden_size[0]
         sequence_length = final_hidden_size[1]
-        hidden_size = config.hidden_size
+        hidden_size = self.config.hidden_size
 
         ##Branch 1:
         #[2, hidden_size]
-        branch_weights_1 = torch.empty(2, config.hidden_size, requires_grad = True)
+        branch_weights_1 = torch.empty(2, self.config.hidden_size, requires_grad = True)
         torch.nn.init.normal_(branch_weiths_1, std = 0.02)
 
         #[2]
@@ -2077,7 +2078,7 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
         torch.nn.init.zeros_(branch_bias_1)
 
         #[batch_size*sequence_length, hidden_size]
-        final_hidden_reshape = sequence_output.view(-1, config.hidden_size)
+        final_hidden_reshape = sequence_output.view(-1, self.config.hidden_size)
 
 
         #[2, hidden_size] * [hidden_size,batch_size*sequence_length] = [2, batch_size*sequence_length]
@@ -2087,7 +2088,7 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
 
          ##Branch 2:
         #[2, hidden_size]
-        branch_weights_2 = torch.empty(2, config.hidden_size, requires_grad = True)
+        branch_weights_2 = torch.empty(2, self.config.hidden_size, requires_grad = True)
         torch.nn.init.normal_(branch_weights_2, std = 0.02)
 
         #[2]
@@ -2095,7 +2096,7 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
         torch.nn.init.zeros_(branch_bias_2)
 
         #[batch_size*sequence_length, hidden_size]
-        final_hidden_reshape = sequence_output.view(-1, config.hidden_size)
+        final_hidden_reshape = sequence_output.view(-1, self.config.hidden_size)
 
 
         #[2, hidden_size] * [hidden_size,batch_size*sequence_length] = [2, batch_size*sequence_length]
