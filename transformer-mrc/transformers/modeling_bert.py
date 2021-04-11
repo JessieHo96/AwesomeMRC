@@ -2102,7 +2102,7 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
 
 
         #[2, hidden_size] * [hidden_size,batch_size*sequence_length] = [2, batch_size*sequence_length]
-        logits_2 = torch.bmm(branch_weights_2, final_hidden_reshape)
+        logits_2 = torch.mm(branch_weights_2, final_hidden_reshape)
         logits_2 = torch.add(branch_bias_2, logits_2) #[2, batch_size*sequence_length]
         logits_2 = torch.nn.tanh(logits_2)
 
