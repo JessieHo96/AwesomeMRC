@@ -2071,7 +2071,7 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
         ##Branch 1:
         #[2, hidden_size]
         branch_weights_1 = torch.empty(2, self.config.hidden_size, requires_grad = True)
-        torch.nn.init.normal_(branch_weiths_1, std = 0.02)
+        torch.nn.init.normal_(branch_weights_1, std = 0.02)
 
         #[2]
         branch_bias_1 = torch.empty(2)
