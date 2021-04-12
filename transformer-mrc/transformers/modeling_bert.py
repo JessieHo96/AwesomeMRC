@@ -2025,7 +2025,6 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention heads.
 
     Examples::
-
         tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         model = BertForQuestionAnswering.from_pretrained('bert-large-uncased-whole-word-masking-finetuned-squad')
         question, text = "Who was Jim Henson?", "Jim Henson was a nice puppet"
@@ -2044,15 +2043,15 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
         self.num_labels = config.num_labels
 
         self.bert = BertModel(config)
-        self.weight_1 = torch.Parameter(torch.nn.init.normal_(torch.empty(2, self.config.hidden_size, requires_grad = True), std = 0.02))
-        self.bias_1 = torch.Parameter(torch.nn.init.zero_(torch.empty(2, requires_grad = True)))
+        self.weight_1 = torch.nn.Parameter(torch.nn.init.normal_(torch.empty(2, self.config.hidden_size, requires_grad = True), std = 0.02))
+        self.bias_1 = nn.Parameter(torch.zeros(2))
         
         
-        self.weight_2 = torch.Parameter(torch.nn.init.normal_(torch.empty(2, self.config.hidden_size, requires_grad = True), std = 0.02))
-        self.bias_2 = torch.Parameter(torch.nn.init.zero_(torch.empty(2, requires_grad = True)))
+        self.weight_2 = torch.nn.Parameter(torch.nn.init.normal_(torch.empty(2, self.config.hidden_size, requires_grad = True), std = 0.02))
+        self.bias_2 = nn.Parameter(torch.zeros(2))
         
         
-        self.relu = torch.nn.Relu()
+        self.relu = torch.nn.ReLU()
         
         self.tanh = torch.nn.tanh()
         
