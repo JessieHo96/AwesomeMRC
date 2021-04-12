@@ -2044,8 +2044,18 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
         self.num_labels = config.num_labels
 
         self.bert = BertModel(config)
-    #     self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)
-
+        self.weight_1 = torch.Parameter(torch.nn.init.normal_(torch.empty(2, self.config.hidden_size, requires_grad = True), std = 0.02))
+        self.bias_1 = torch.Parameter(torch.nn.init.zero_(torch.empty(2, requires_grad = True)))
+        
+        
+        self.weight_2 = torch.Parameter(torch.nn.init.normal_(torch.empty(2, self.config.hidden_size, requires_grad = True), std = 0.02))
+        self.bias_2 = torch.Parameter(torch.nn.init.zero_(torch.empty(2, requires_grad = True)))
+        
+        
+        self.relu = torch.nn.Relu()
+        
+        self.tanh = torch.nn.tanh()
+        
         self.init_weights()
         self.config = config
 
@@ -2068,43 +2078,43 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
         sequence_length = final_hidden_size[1]
         hidden_size = self.config.hidden_size
         
-        device = input_ids.device if input_ids is not None else inputs_embeds.device
+#         device = input_ids.device if input_ids is not None else inputs_embeds.device
 
         ##Branch 1:
         #[2, hidden_size]
-        branch_weights_1 = torch.empty(2, self.config.hidden_size, requires_grad = True, device = device)
-        torch.nn.init.normal_(branch_weights_1, std = 0.02)
+#         branch_weights_1 = torch.empty(2, self.config.hidden_size, requires_grad = True, device = device)
+#         torch.nn.init.normal_(branch_weights_1, std = 0.02)
 
         #[2]
-        branch_bias_1 = torch.empty(2, device = device)
-        torch.nn.init.zeros_(branch_bias_1)
+#         branch_bias_1 = torch.empty(2, device = device)
+#         torch.nn.init.zeros_(branch_bias_1)
 
         #[hidden_size,batch_size*sequence_length]
         final_hidden_reshape = sequence_output.view(self.config.hidden_size,-1)
 
 
         #[2, hidden_size] * [hidden_size,batch_size*sequence_length] = [2, batch_size*sequence_length]
-        logits_1 = torch.mm(branch_weights_1, final_hidden_reshape)
-        logits_1 = torch.add(branch_bias_1, logits_1) #[2, batch_size*sequence_length]
-        logits_1 = torch.nn.Relu(logits_1)
+        logits_1 = torch.mm(self.weight_1, final_hidden_reshape)
+        logits_1 = self.bias_1 + logits_1 #[2, batch_size*sequence_length]
+        logits_1 = self.relu(logits_1)
 
          ##Branch 2:
         #[2, hidden_size]
-        branch_weights_2 = torch.empty(2, self.config.hidden_size, requires_grad = True, device= device)
-        torch.nn.init.normal_(branch_weights_2, std = 0.02)
+#         branch_weights_2 = torch.empty(2, self.config.hidden_size, requires_grad = True, device= device)
+#         torch.nn.init.normal_(branch_weights_2, std = 0.02)
 
-        #[2]
-        branch_bias_2 = torch.empty(2, device=device)
-        torch.nn.init.zeros_(branch_bias_2)
+#         #[2]
+#         branch_bias_2 = torch.empty(2, device=device)
+#         torch.nn.init.zeros_(branch_bias_2)
 
         #[hidden_size,batch_size*sequence_length]
         final_hidden_reshape = sequence_output.view(self.config.hidden_size,-1)
 
 
         #[2, hidden_size] * [hidden_size,batch_size*sequence_length] = [2, batch_size*sequence_length]
-        logits_2 = torch.mm(branch_weights_2, final_hidden_reshape)
-        logits_2 = torch.add(branch_bias_2, logits_2) #[2, batch_size*sequence_length]
-        logits_2 = torch.nn.tanh(logits_2)
+        logits_2 = torch.mm(self.weight_2, final_hidden_reshape)
+        logits_2 = self.bias_2 + logits_2 #[2, batch_size*sequence_length]
+        logits_2 = self.tanh(logits_2)
 
         #Gate Mechanism
         logits = torch.mul(logits_1, logits_2)#[2, batch_size*sequence_length]
