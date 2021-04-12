@@ -2094,7 +2094,7 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
 
 
         #[2, hidden_size] * [hidden_size,batch_size*sequence_length] = [2, batch_size*sequence_length]
-        logits_1 = torch.mm(self.weight_1, final_hidden_reshape)
+        logits_1 = torch.matmul(self.weight_1, final_hidden_reshape)
         logits_1 = self.bias_1 + logits_1 #[2, batch_size*sequence_length]
         logits_1 = self.relu(logits_1)
 
@@ -2112,12 +2112,12 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
 
 
         #[2, hidden_size] * [hidden_size,batch_size*sequence_length] = [2, batch_size*sequence_length]
-        logits_2 = torch.mm(self.weight_2, final_hidden_reshape)
+        logits_2 = torch.matmul(self.weight_2, final_hidden_reshape)
         logits_2 = self.bias_2 + logits_2 #[2, batch_size*sequence_length]
         logits_2 = self.tanh(logits_2)
 
         #Gate Mechanism
-        logits = torch.mul(logits_1, logits_2)#[2, batch_size*sequence_length]
+        logits = torch.matmul(logits_1, logits_2)#[2, batch_size*sequence_length]
         logits = logits.view(batch_size, -1, 2)
 
 
