@@ -2050,8 +2050,8 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
         self.bias_1 = torch.nn.Parameter(torch.zeros(1,2, requires_grad = True))
         
         ##Branch_2
-        self.weight_2 = torch.Parameter(torch.nn.init.normal_(torch.empty(self.config.hidden_size,2, requires_grad = True), std = 0.02))
-        self.bias_2 = torch.Parameter(torch.zeros(1,2, requires_grad = True))
+        self.weight_2 = torch.nn.Parameter(torch.nn.init.normal_(torch.empty(self.config.hidden_size,2, requires_grad = True), std = 0.02))
+        self.bias_2 = torch.nn.Parameter(torch.zeros(1,2, requires_grad = True))
         
         
         self.relu = torch.nn.ReLU()
@@ -2077,7 +2077,7 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
 
         sequence_output = outputs[0]
         
-        direct_logits = self.qa_output(sequence_output)##[batch_size, sequence_length, 2]
+        direct_logits = self.qa_outputs(sequence_output)##[batch_size, sequence_length, 2]
 
         final_hidden_size = sequence_output.size()
         
