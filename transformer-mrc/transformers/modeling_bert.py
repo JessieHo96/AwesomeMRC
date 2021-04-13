@@ -2046,17 +2046,17 @@ class BertForQuestionAnsweringGateMechanism(BertPreTrainedModel):
         self.bert = BertModel(config)
         
         ##Branch_1
-        self.weight_1 = torch.Parameter(torch.nn.init.normal_(torch.empty(self.config.hidden_size,2, requires_grad = True), std = 0.02))
-        self.bias_1 = torch.Parameter(torch.nn.init.zero_(torch.empty(1,2, requires_grad = True)))
+        self.weight_1 = torch.nn.Parameter(torch.nn.init.normal_(torch.empty(self.config.hidden_size,2, requires_grad = True), std = 0.02))
+        self.bias_1 = torch.nn.Parameter(torch.zeros(1,2, requires_grad = True))
         
         ##Branch_2
         self.weight_2 = torch.Parameter(torch.nn.init.normal_(torch.empty(self.config.hidden_size,2, requires_grad = True), std = 0.02))
-        self.bias_2 = torch.Parameter(torch.nn.init.zero_(torch.empty(1,2, requires_grad = True)))
+        self.bias_2 = torch.Parameter(torch.zeros(1,2, requires_grad = True))
         
         
-        self.relu = torch.nn.Relu()
+        self.relu = torch.nn.ReLU()
         
-        self.tanh = torch.nn.tanh()
+        self.tanh = torch.nn.Tanh()
         
         self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)##[batch_size, sequence_length, 2]
         
