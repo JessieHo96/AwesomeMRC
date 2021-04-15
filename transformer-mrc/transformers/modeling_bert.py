@@ -2227,7 +2227,7 @@ class BertForQuestionAnsweringGateMechanismAVPool(BertPreTrainedModel):
         has_log = self.has_ans(first_word)
         has_log = has_log.squeeze(-1)
         
-        direct_logits = self.qa_outputs(sequence_output)##[batch_size, sequence_length, 2]
+#         direct_logits = self.qa_outputs(sequence_output)##[batch_size, sequence_length, 2]
 
         final_hidden_size = sequence_output.size()
         
@@ -2261,14 +2261,14 @@ class BertForQuestionAnsweringGateMechanismAVPool(BertPreTrainedModel):
         
         
         ##Residual
-        logits = logits + direct_logits####[batch_size, sequence_length, 2]
+#         logits = logits + direct_logits####[batch_size, sequence_length, 2]
 
 
         start_logits, end_logits = logits.split(1, dim=-1)
         start_logits = start_logits.squeeze(-1)
         end_logits = end_logits.squeeze(-1)
 
-        outputs = (start_logits, end_logits,) + outputs[2:]
+        outputs = (start_logits, end_logits,has_log,) + outputs[2:]
         if start_positions is not None and end_positions is not None:
             # If we are on multi-GPU, split add a dimension
             if len(start_positions.size()) > 1:
@@ -2286,7 +2286,8 @@ class BertForQuestionAnsweringGateMechanismAVPool(BertPreTrainedModel):
             
             choice_loss = loss_fct(has_log, is_impossibles)
             
-            total_loss = (start_loss + end_loss + choice_loss) / 3
+#             total_loss = (start_loss + end_loss + choice_loss) / 3
+            total_loss = 0.8*(start_loss + end_loss) + choice_loss*0.2
             outputs = (total_loss,) + outputs
 
         return outputs  # (loss), start_logits, end_logits, (hidden_states), (attentions)
