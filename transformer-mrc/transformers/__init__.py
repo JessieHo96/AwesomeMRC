@@ -80,7 +80,7 @@ if is_torch_available():
     from .modeling_bert import (BertPreTrainedModel, BertModel, BertForPreTraining,
                                 BertForMaskedLM, BertForNextSentencePrediction,
                                 BertForSequenceClassification, BertForMultipleChoice,
-                                BertForTokenClassification, BertForQuestionAnswering,BertForQuestionAnsweringSeqTrm,BertForQuestionAnsweringSeqSC,BertForQuestionAnsweringGateMechanismAVPool,
+                                BertForTokenClassification, BertForQuestionAnsweringGateMechanismAVPoolBECV3,BertForQuestionAnswering,BertForQuestionAnsweringSeqTrm,BertForQuestionAnsweringSeqSC,BertForQuestionAnsweringGateMechanismAVPool,
                                 BertForQuestionAnsweringAVPool,BertForQuestionAnsweringAVReg,
                                 BertForQuestionAnsweringDep,BertForQuestionAnsweringDep2,BertForQuestionAnsweringGateMechanism,
                                 BertForQuestionAnsweringAVPoolBCE,BertForQuestionAnsweringAVPoolBCEv3,BertForQuestionAnsweringSeqSCAVPooler,
