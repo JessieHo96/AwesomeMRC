@@ -83,7 +83,7 @@ if is_torch_available():
                                 BertForTokenClassification, BertForQuestionAnsweringGateMechanismAVPoolBECV3,BertForQuestionAnswering,BertForQuestionAnsweringSeqTrm,BertForQuestionAnsweringSeqSC,BertForQuestionAnsweringGateMechanismAVPool,
                                 BertForQuestionAnsweringAVPool,BertForQuestionAnsweringAVReg,
                                 BertForQuestionAnsweringDep,BertForQuestionAnsweringDep2,BertForQuestionAnsweringGateMechanism,
-                                BertForQuestionAnsweringAVPoolBCE,BertForQuestionAnsweringAVPoolBCEv3,BertForQuestionAnsweringSeqSCAVPooler,
+                                BertForQuestionAnsweringAVPoolBCE,BertForQuestionAnsweringAVPoolBCEv3,BertForQuestionAnsweringSeqSCAVPooler,BertForQuestionAnsweringLSTM,
                                 load_tf_weights_in_bert, BERT_PRETRAINED_MODEL_ARCHIVE_MAP)
     from .modeling_openai import (OpenAIGPTPreTrainedModel, OpenAIGPTModel,
                                   OpenAIGPTLMHeadModel, OpenAIGPTDoubleHeadsModel,
