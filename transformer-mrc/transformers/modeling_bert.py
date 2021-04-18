@@ -2533,7 +2533,7 @@ class BertForQuestionAnsweringLSTM(BertPreTrainedModel):
         
         
         self.qa_outputs = nn.Linear(config.hidden_size*2, config.num_labels)##[batch_size, sequence_length, 2]
-        self.has_ans = nn.Sequential(nn.Dropout(p=config.hidden_dropout_prob), nn.Linear(config.hidden_size, 2))
+        self.has_ans = nn.Sequential(nn.Dropout(p=config.hidden_dropout_prob), nn.Linear(config.hidden_size*2, 2))
         
         self.init_weights()
         self.config = config
@@ -2552,11 +2552,15 @@ class BertForQuestionAnsweringLSTM(BertPreTrainedModel):
 
         sequence_output = outputs[0]
         
-        first_word = sequence_output[:, 0, :]
-        has_log = self.has_ans(first_word)
+#         first_word = sequence_output[:, 0, :]
+#         has_log = self.has_ans(first_word)
         
         highway_out = self.highway_net(sequence_output)
         lstm_output, _ = self.lstm(highway_out)
+        
+        first_word = lstm_output[:, -1, :]
+        has_log = self.has_ans(first_word)
+        
         logits = self.qa_outputs(lstm_output)
 
         start_logits, end_logits = logits.split(1, dim=-1)
