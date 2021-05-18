@@ -210,8 +210,8 @@ def train(args, train_dataset, model, tokenizer):
     return global_step, tr_loss / global_step
 
 
-def evaluate(args, model, tokenizer, dataset, examples, features,prefix=""):
-#     dataset, examples, features = load_and_cache_examples(args, tokenizer, evaluate=True, output_examples=True)
+def evaluate(args, model, tokenizer, prefix=""):
+    dataset, examples, features = load_and_cache_examples(args, tokenizer, evaluate=True, output_examples=True)
 
     if not os.path.exists(args.output_dir) and args.local_rank in [-1, 0]:
         os.makedirs(args.output_dir)
@@ -615,10 +615,7 @@ def main():
                 checkpoints = [args.model_name_or_path]
 
         logger.info("Evaluate the following checkpoints: %s", checkpoints)
-        
-        eval_dataset, eval_examples, eval_features= load_and_cache_examples(args, tokenizer, evaluate=True, output_examples=True)
-        
-        
+
         for checkpoint in checkpoints:
             # Reload the model
             global_step = checkpoint.split('-')[-1] if len(checkpoints) > 1 else ""
@@ -626,7 +623,7 @@ def main():
             model.to(args.device)
 
             # Evaluate
-            result = evaluate(args, model, tokenizer, eval_dataset,eval_examples, eval_features,prefix=global_step)
+            result = evaluate(args, model, tokenizer, prefix=global_step)
 
             result = dict((k + ('_{}'.format(global_step) if global_step else ''), v) for k, v in result.items())
             results.update(result)
