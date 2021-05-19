@@ -79,9 +79,17 @@ def _is_whitespace(c):
         return True
     return False
 
+def make_char_vector(max_sent_len, max_word_len, sentence):
+        
+    char_vec = torch.ones(max_sent_len, max_word_len).type(torch.LongTensor)
+    for i, word in enumerate(nlp(sentence, disable=['parser','tagger','ner'])):
+        for j, ch in enumerate(word.text):
+            char_vec[i][j] = char2idx.get(ch, 0)
+  
+    return char_vec
 
 def squad_convert_examples_to_features(
-    examples, tokenizer, max_seq_length, doc_stride, max_query_length, is_training, return_dataset=False, regression=False, pq_end=False,
+    examples, tokenizer, max_seq_length, doc_stride, max_query_length, is_training, return_dataset=False, regression=False, pq_end=False, char_feature = False
 ):
     """
     Converts a list of examples into a list of features that can be directly given as input to a model.

@@ -2588,3 +2588,175 @@ class BertForQuestionAnsweringLSTM(BertPreTrainedModel):
             outputs = (total_loss,) + outputs
 
         return outputs  # (loss), start_logits, end_logits, (hidden_states), (attentions)
+
+class ContextualEmbeddingLayer(nn.Module):
+    
+    def __init__(self, input_dim, hidden_dim):
+        
+        super().__init__()
+        
+        self.lstm = nn.LSTM(input_dim, hidden_dim, batch_first=True, bidirectional=True)
+        
+        self.highway_net = HighwayNetwork(input_dim)
+        
+    def forward(self, x):
+        # x = [bs, seq_len, input_dim] = [bs, seq_len, hidden_size]
+        
+        highway_out = self.highway_net(x)
+        # highway_out = [bs, seq_len, hidden_size]
+        
+        outputs, _ = self.lstm(highway_out)
+        # outputs = [bs, seq_len, hidden_size*2]
+        
+        return outputs
+    
+class BertForQuestionAnsweringLSTMBiDAFPooler(BertPreTrainedModel):
+    def __init__(self, config):
+        super(BertForQuestionAnsweringLSTMBiDAFPooler, self).__init__(config)
+        self.num_labels = config.num_labels
+        
+        self.bert = BertModel(config)
+        
+        ##[batch_size, sequence_length, hidden_size]->[batch_size, sequence_length, hidden_size*2]
+        self.context_embedding = ContextualEmbeddingLayer(config.hidden_size, config.hidden_size)
+        
+        self.drop_out = nn.Dropout(p=config.hidden_dropout_prob)
+        
+        self.similarity_weight = nn.Linear(config.hidden_size*6, 1, bias=False)
+        
+        self.modeling_lstm = nn.LSTM(config.hidden_size*8, emb_dim, bidirectional=True, num_layers=2, batch_first=True, dropout=0.2)
+        
+        self.output_start = nn.Linear(config.hidden_size*10, 1, bias=False)
+        
+        self.output_end = nn.Linear(config.hidden_size*10, 1, bias=False)
+        
+        self.end_lstm = nn.LSTM(config.hidden_size*2, emb_dim, bidirectional=True, batch_first=True)
+        
+        self.has_ans = nn.Sequential(nn.Dropout(p=config.hidden_dropout_prob), nn.Linear(config.hidden_size, 2))
+
+        self.init_weights()
+
+    def forward(self, input_ids=None, attention_mask=None, token_type_ids=None, pq_end_pos=None, position_ids=None, head_mask=None,
+                inputs_embeds=None, start_positions=None, end_positions=None, is_impossibles=None):
+
+        outputs = self.bert(input_ids,
+                            attention_mask=attention_mask,
+                            token_type_ids=token_type_ids,
+                            position_ids=position_ids,
+                            head_mask=head_mask,
+                            inputs_embeds=inputs_embeds)
+
+        sequence_output = outputs[0]
+        
+        first_word = sequence_output[:, 0, :]
+        has_log = self.has_ans(first_word)
+
+        query_sequence_output, context_sequence_output, query_attention_mask, context_attention_mask = \
+            split_ques_context(sequence_output, pq_end_pos)
+        
+        ctx_contextual_emb = self.contextual_embedding(context_sequence_output)
+        # [bs, ctx_len, hidden_size*2]
+        
+        ques_contextual_emb = self.contextual_embedding(query_sequence_output)
+        # [bs, ques_len, hidden_size*2]
+        
+        ## CREATE SIMILARITY MATRIX
+        ctx_ = ctx_contextual_emb.unsqueeze(2).repeat(1,1,ques_len,1)
+        # [bs, ctx_len, 1, hidden_size*2] => [bs, ctx_len, ques_len, hidden_size*2]
+        
+        ques_ = ques_contextual_emb.unsqueeze(1).repeat(1,ctx_len,1,1)
+        # [bs, 1, ques_len, hidden_size*2] => [bs, ctx_len, ques_len, hidden_size*2]
+        
+        elementwise_prod = torch.mul(ctx_, ques_)
+        # [bs, ctx_len, ques_len, hidden_size*2]
+        
+        alpha = torch.cat([ctx_, ques_, elementwise_prod], dim=3)
+        # [bs, ctx_len, ques_len, hidden_size*6]
+        
+        similarity_matrix = self.similarity_weight(alpha).view(-1, ctx_len, ques_len)
+        # [bs, ctx_len, ques_len]
+        
+        ## CALCULATE CONTEXT2QUERY ATTENTION
+        
+        a = F.softmax(similarity_matrix, dim=-1)
+        # [bs, ctx_len, ques_len]
+        
+        c2q = torch.bmm(a, ques_contextual_emb)
+        # [bs] ([ctx_len, ques_len] X [ques_len, hidden_size*2]) => [bs, ctx_len, hidden_size*2]
+        
+        
+        ## CALCULATE QUERY2CONTEXT ATTENTION
+        
+        b = F.softmax(torch.max(similarity_matrix,2)[0], dim=-1)
+        # [bs, ctx_len]
+        
+        b = b.unsqueeze(1)
+        # [bs, 1, ctx_len]
+        
+        q2c = torch.bmm(b, ctx_contextual_emb)
+        # [bs] ([bs, 1, ctx_len] X [bs, ctx_len, hidden_size*2]) => [bs, 1, hidden_size*2]
+        
+        q2c = q2c.repeat(1, ctx_len, 1)
+        # [bs, ctx_len, hidden_size*2]
+        
+        ## QUERY AWARE REPRESENTATION
+        
+        G = torch.cat([ctx_contextual_emb, c2q, 
+                       torch.mul(ctx_contextual_emb,c2q), 
+                       torch.mul(ctx_contextual_emb, q2c)], dim=2)
+        
+        # [bs, ctx_len, emb_dim*8]
+        
+        ## MODELING LAYER
+        
+        M, _ = self.modeling_lstm(G)
+        # [bs, ctx_len, emb_dim*2]
+        
+        ## OUTPUT LAYER
+        
+        M2, _ = self.end_lstm(M)
+        
+        # START PREDICTION
+        
+        start_logits = self.output_start(torch.cat([G,M], dim=2))
+        # [bs, ctx_len, 1]
+        
+        start_logits = start_logits.squeeze()
+        # [bs, ctx_len]
+        
+        
+        # END PREDICTION
+        
+        end_logits = self.output_end(torch.cat([G, M2], dim=2)).squeeze()
+        # [bs, ctx_len, 1] => [bs, ctx_len]
+        
+        
+        start_logits = start_logits.squeeze(-1)
+        end_logits = end_logits.squeeze(-1)
+        
+        
+        
+        
+        outputs = (start_logits, end_logits, has_log,) + outputs[2:]
+        
+        if start_positions is not None and end_positions is not None:
+            # If we are on multi-GPU, split add a dimension
+            if len(start_positions.size()) > 1:
+                start_positions = start_positions.squeeze(-1)
+            if len(end_positions.size()) > 1:
+                end_positions = end_positions.squeeze(-1)
+            # sometimes the start/end positions are outside our model inputs, we ignore these terms
+            ignored_index = start_logits.size(1)
+            start_positions.clamp_(0, ignored_index)
+            end_positions.clamp_(0, ignored_index)
+
+            loss_fct = CrossEntropyLoss(ignore_index=ignored_index)
+            start_loss = loss_fct(start_logits, start_positions)
+            end_loss = loss_fct(end_logits, end_positions)
+            
+            choice_loss = loss_fct(has_log, is_impossibles)
+            total_loss = (start_loss + end_loss + choice_loss) / 3
+            
+            outputs = (total_loss,) + outputs
+
+        return outputs  # (loss), start_logits, end_logits, (hidden_states), (attentions)

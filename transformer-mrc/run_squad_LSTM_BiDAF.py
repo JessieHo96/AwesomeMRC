@@ -18,7 +18,7 @@
 from __future__ import absolute_import, division, print_function
 from transformers.data.processors.squad import SquadV1Processor, SquadV2Processor, SquadResult
 from transformers.data.metrics.squad_metrics import compute_predictions_logits, compute_predictions_log_probs, squad_evaluate
-from examples.evaluate_official2 import eval_squad
+from evaluate_official2 import eval_squad
 import argparse
 import logging
 import os
@@ -38,13 +38,13 @@ except:
 from tqdm import tqdm, trange
 
 from transformers import (WEIGHTS_NAME, BertConfig,
-                                  BertForQuestionAnsweringLSTM, BertTokenizer,
+                                  BertForQuestionAnsweringLSTMBiDAFPooler, BertTokenizer,
                                   XLMConfig, XLMForQuestionAnswering,
                                   XLMTokenizer, XLNetConfig,
-                                  XLNetForQuestionAnswering,
+                                  XLNetForQuestionAnsweringSC,
                                   XLNetTokenizer,
                                   DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer,
-                                  AlbertConfig, AlbertForQuestionAnsweringAVPool, AlbertTokenizer,
+                                  AlbertConfig, AlbertForQuestionAnsweringSeqSC, AlbertTokenizer,
                                   XLMConfig, XLMForQuestionAnswering, XLMTokenizer,
                                   )
 
@@ -56,11 +56,11 @@ ALL_MODELS = sum((tuple(conf.pretrained_config_archive_map.keys()) \
                   for conf in (BertConfig, XLNetConfig, XLMConfig)), ())
 
 MODEL_CLASSES = {
-    'bert': (BertConfig, BertForQuestionAnsweringLSTM, BertTokenizer),
-    'xlnet': (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
+    'bert': (BertConfig, BertForQuestionAnsweringLSTMBiDAFPooler, BertTokenizer),
+    'xlnet': (XLNetConfig, XLNetForQuestionAnsweringSC, XLNetTokenizer),
     'xlm': (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
     'distilbert': (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
-    'albert': (AlbertConfig, AlbertForQuestionAnsweringAVPool, AlbertTokenizer),
+    'albert': (AlbertConfig, AlbertForQuestionAnsweringSeqSC, AlbertTokenizer),
 }
 
 def set_seed(args):
@@ -142,14 +142,15 @@ def train(args, train_dataset, model, tokenizer):
                 'attention_mask':  batch[1],
                 'start_positions': batch[3],
                 'end_positions':   batch[4],
-                'is_impossibles':   batch[5]
+                'is_impossibles':   batch[5],
+                'pq_end_pos':   batch[6],
             }
 
             if args.model_type != 'distilbert':
                 inputs['token_type_ids'] = None if args.model_type == 'xlm' else batch[2]
 
             if args.model_type in ['xlnet', 'xlm']:
-                inputs.update({'cls_index': batch[6], 'p_mask': batch[7]})
+                inputs.update({'cls_index': batch[7], 'p_mask': batch[8]})
 
             outputs = model(**inputs)
             loss = outputs[0]  # model outputs are always tuple in transformers (see doc)
@@ -241,7 +242,8 @@ def evaluate(args, model, tokenizer, prefix=""):
         with torch.no_grad():
             inputs = {
                 'input_ids':      batch[0],
-                'attention_mask': batch[1]
+                'attention_mask': batch[1],
+                'pq_end_pos': batch[5],
             }
             
             if args.model_type != 'distilbert':
@@ -251,7 +253,7 @@ def evaluate(args, model, tokenizer, prefix=""):
             
             # XLNet and XLM use more arguments for their predictions
             if args.model_type in ['xlnet', 'xlm']:
-                inputs.update({'cls_index': batch[5], 'p_mask': batch[6]})
+                inputs.update({'cls_index': batch[6], 'p_mask': batch[7]})
 
             outputs = model(**inputs)
 
@@ -280,7 +282,7 @@ def evaluate(args, model, tokenizer, prefix=""):
             else:
                 start_logits, end_logits, choice_logits  = output
                 result = SquadResult(
-                    unique_id, start_logits, end_logits, choice_logits
+                    unique_id, start_logits, end_logits
                 )
 
             all_results.append(result)
@@ -323,8 +325,6 @@ def evaluate(args, model, tokenizer, prefix=""):
     # Compute the F1 and exact scores.
     #results = squad_evaluate(examples, predictions)
     #SQuAD 2.0
-    # results = eval_squad(args.predict_file, output_prediction_file, output_null_log_odds_file,
-    #                         args.null_score_diff_threshold)
     results = eval_squad(os.path.join(args.data_dir, args.predict_file), output_prediction_file, output_null_log_odds_file,
                             args.null_score_diff_threshold)
     return results
@@ -335,52 +335,54 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
 
     # Load data features from cache or dataset file
     input_dir = args.data_dir if args.data_dir else "."
-    cached_features_file = os.path.join(input_dir, 'reader_cached_{}_{}_{}_{}'.format(
-        'dev' if evaluate else 'train',
-        list(filter(None, args.model_name_or_path.split('/'))).pop(),
-        str(args.max_seq_length),str(args.doc_stride)),
-    )
+    # cached_features_file = os.path.join(input_dir, 'cached_{}_{}_{}'.format(
+    #     'dev' if evaluate else 'train',
+    #     list(filter(None, args.model_name_or_path.split('/'))).pop(),
+    #     str(args.max_seq_length))
+    # )
 
     # Init features and dataset from cache if it exists
-    if os.path.exists(cached_features_file) and not args.overwrite_cache and not output_examples:
-        logger.info("Loading features from cached file %s", cached_features_file)
-        features_and_dataset = torch.load(cached_features_file)
-        features, dataset = features_and_dataset["features"], features_and_dataset["dataset"]
+    # if os.path.exists(cached_features_file) and not args.overwrite_cache and not output_examples:
+    #     logger.info("Loading features from cached file %s", cached_features_file)
+    #     features_and_dataset = torch.load(cached_features_file)
+    #     features, dataset = features_and_dataset["features"], features_and_dataset["dataset"]
+    # else:
+    logger.info("Creating features from dataset file at %s", input_dir)
+
+    if not args.data_dir and ((evaluate and not args.predict_file) or (not evaluate and not args.train_file)):
+        try:
+            import tensorflow_datasets as tfds
+        except ImportError:
+            raise ImportError("If not data_dir is specified, tensorflow_datasets needs to be installed.")
+
+        if args.version_2_with_negative:
+            logger.warn("tensorflow_datasets does not handle version 2 of SQuAD.")
+
+        tfds_examples = tfds.load("squad")
+        examples = SquadV1Processor().get_examples_from_dataset(tfds_examples, evaluate=evaluate)
     else:
-        logger.info("Creating features from dataset file at %s", input_dir)
+        processor = SquadV2Processor() if args.version_2_with_negative else SquadV1Processor()
 
-        if not args.data_dir and ((evaluate and not args.predict_file) or (not evaluate and not args.train_file)):
-            try:
-                import tensorflow_datasets as tfds
-            except ImportError:
-                raise ImportError("If not data_dir is specified, tensorflow_datasets needs to be installed.")
-
-            if args.version_2_with_negative:
-                logger.warn("tensorflow_datasets does not handle version 2 of SQuAD.")
-
-            tfds_examples = tfds.load("squad")
-            examples = SquadV1Processor().get_examples_from_dataset(tfds_examples, evaluate=evaluate)
+        if evaluate:
+            examples = processor.get_dev_examples(args.data_dir, filename=args.predict_file)
         else:
-            processor = SquadV2Processor() if args.version_2_with_negative else SquadV1Processor()
+            examples = processor.get_train_examples(args.data_dir, filename=args.train_file)
 
-            if evaluate:
-                examples = processor.get_dev_examples(args.data_dir, filename=args.predict_file)
-            else:
-                examples = processor.get_train_examples(args.data_dir, filename=args.train_file)
-
-        features, dataset = squad_convert_examples_to_features(
-            examples=examples,
-            tokenizer=tokenizer,
-            max_seq_length=args.max_seq_length,
-            doc_stride=args.doc_stride,
-            max_query_length=args.max_query_length,
-            is_training=not evaluate,
-            return_dataset='pt'
-        )
-
-        if args.local_rank in [-1, 0]:
-            logger.info("Saving features into cached file %s", cached_features_file)
-            torch.save({"features": features, "dataset": dataset}, cached_features_file)
+    features, dataset = squad_convert_examples_to_features(
+        examples=examples,
+        tokenizer=tokenizer,
+        max_seq_length=args.max_seq_length,
+        doc_stride=args.doc_stride,
+        max_query_length=args.max_query_length,
+        is_training=not evaluate,
+        return_dataset='pt',
+        regression=False,
+        pq_end=True
+    )
+    #
+    # if args.local_rank in [-1, 0]:
+    #     logger.info("Saving features into cached file %s", cached_features_file)
+    #     torch.save({"features": features, "dataset": dataset}, cached_features_file)
 
     if args.local_rank == 0 and not evaluate:
         torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
@@ -400,7 +402,6 @@ def main():
                         help="Path to pre-trained model or shortcut name selected in the list: " + ", ".join(ALL_MODELS))
     parser.add_argument("--output_dir", default=None, type=str, required=True,
                         help="The output directory where the model checkpoints and predictions will be written.")
-
     ## Other parameters
     parser.add_argument("--padding_side", default="right", type=str,
                         help="right/left, padding_side of passage / question")

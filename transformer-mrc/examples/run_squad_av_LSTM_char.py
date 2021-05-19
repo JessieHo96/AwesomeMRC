@@ -30,6 +30,12 @@ import torch
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler, TensorDataset)
 from torch.utils.data.distributed import DistributedSampler
 import pickle
+import numpy as np
+import re, os, string, typing, gc, json
+import spacy
+from collections import Counter
+nlp = spacy.load('en')
+
 try:
     from torch.utils.tensorboard import SummaryWriter
 except:
@@ -210,8 +216,8 @@ def train(args, train_dataset, model, tokenizer):
     return global_step, tr_loss / global_step
 
 
-def evaluate(args, model, tokenizer, prefix=""):
-    dataset, examples, features = load_and_cache_examples(args, tokenizer, evaluate=True, output_examples=True)
+def evaluate(args, model, tokenizer, dataset, examples, features,prefix=""):
+#     dataset, examples, features = load_and_cache_examples(args, tokenizer, evaluate=True, output_examples=True)
 
     if not os.path.exists(args.output_dir) and args.local_rank in [-1, 0]:
         os.makedirs(args.output_dir)
@@ -329,6 +335,16 @@ def evaluate(args, model, tokenizer, prefix=""):
                             args.null_score_diff_threshold)
     return results
 
+def make_char_vector(max_sent_len, max_word_len, sentence):
+        
+    char_vec = torch.ones(max_sent_len, max_word_len).type(torch.LongTensor)
+
+    for i, word in enumerate(nlp(sentence, disable=['parser','tagger','ner'])):
+        for j, ch in enumerate(word.text):
+            char_vec[i][j] = char2idx.get(ch, 0)
+
+    return char_vec 
+
 def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=False):
     if args.local_rank not in [-1, 0] and not evaluate:
         torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
@@ -368,19 +384,70 @@ def load_and_cache_examples(args, tokenizer, evaluate=False, output_examples=Fal
             else:
                 examples = processor.get_train_examples(args.data_dir, filename=args.train_file)
 
-        features, dataset = squad_convert_examples_to_features(
+#         features, dataset = squad_convert_examples_to_features(
+#             examples=examples,
+#             tokenizer=tokenizer,
+#             max_seq_length=args.max_seq_length,
+#             doc_stride=args.doc_stride,
+#             max_query_length=args.max_query_length,
+#             is_training=not evaluate,
+#             return_dataset='pt'
+#         )
+            with open('qanetc2id.pickle','rb') as handle:
+        char2idx = pickle.load(handle)
+        
+            features = squad_convert_examples_to_features(
             examples=examples,
             tokenizer=tokenizer,
             max_seq_length=args.max_seq_length,
             doc_stride=args.doc_stride,
             max_query_length=args.max_query_length,
             is_training=not evaluate,
-            return_dataset='pt'
-        )
+            return_dataset=False)
+            
+            context_char_vectors = torch.ones(len(examples), 512, 45).type(torch.LongTensor)
+            for index,example in enumerate(examples):
+                context_char_vectors[index] = make_char_vector(512, 45, example.context_text)
+            
+            
+            question_char_vectors = torch.ones(len(examples), 128, 45).type(torch.LongTensor)
+            for index,example in enumerate(examples):
+                context_char_vectors[index] = make_char_vector(512, 45, example.question_text)
+                
+        # Convert to Tensors and build dataset
+        all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
+        all_attention_masks = torch.tensor([f.attention_mask for f in features], dtype=torch.long)
+        all_token_type_ids = torch.tensor([f.token_type_ids for f in features], dtype=torch.long)
+        all_cls_index = torch.tensor([f.cls_index for f in features], dtype=torch.long)
+        all_p_mask = torch.tensor([f.p_mask for f in features], dtype=torch.float)
+        all_is_impossible = torch.tensor([f.is_impossible for f in features], dtype=torch.float)
+        all_context_char_vectors = torch.tensor(context_char_vectors, dtype=torch.float)
+        all_question_char_vectors = torch.tensor(question_char_vectors, dtype=torch.float)
+                
+        if not is_training:
+            all_feature_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
+            dataset = TensorDataset(
+                all_input_ids, all_attention_masks, all_token_type_ids, all_feature_index, all_cls_index, all_p_mask,all_context_char_vectors,all_question_char_vectors
+            )
+        else:
+            all_start_positions = torch.tensor([f.start_position for f in features], dtype=torch.long)
+            all_end_positions = torch.tensor([f.end_position for f in features], dtype=torch.long)
+            dataset = TensorDataset(
+                all_input_ids,
+                all_attention_masks,
+                all_token_type_ids,
+                all_start_positions,
+                all_end_positions,
+                all_cls_index,
+                all_p_mask,
+                all_is_impossible,
+                all_context_char_vectors,
+                all_question_char_vectors
+            )
 
         if args.local_rank in [-1, 0]:
             logger.info("Saving features into cached file %s", cached_features_file)
-            torch.save({"features": features, "dataset": dataset}, cached_features_file)
+            torch.save({"features": features, "dataset": dataset, 'question_char_vectors':question_char_vectors}, cached_features_file, 'question_char_vectors':question_char_vectors)
 
     if args.local_rank == 0 and not evaluate:
         torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
@@ -615,7 +682,10 @@ def main():
                 checkpoints = [args.model_name_or_path]
 
         logger.info("Evaluate the following checkpoints: %s", checkpoints)
-
+        
+        eval_dataset, eval_examples, eval_features= load_and_cache_examples(args, tokenizer, evaluate=True, output_examples=True)
+        
+        
         for checkpoint in checkpoints:
             # Reload the model
             global_step = checkpoint.split('-')[-1] if len(checkpoints) > 1 else ""
@@ -623,7 +693,7 @@ def main():
             model.to(args.device)
 
             # Evaluate
-            result = evaluate(args, model, tokenizer, prefix=global_step)
+            result = evaluate(args, model, tokenizer, eval_dataset,eval_examples, eval_features,prefix=global_step)
 
             result = dict((k + ('_{}'.format(global_step) if global_step else ''), v) for k, v in result.items())
             results.update(result)
