@@ -77,7 +77,7 @@ if is_torch_available():
     from .modeling_auto import (AutoModel, AutoModelForSequenceClassification, AutoModelForQuestionAnswering,
                                 AutoModelWithLMHead, AutoModelForTokenClassification, ALL_PRETRAINED_MODEL_ARCHIVE_MAP)
     from .modeling_spanbert import SpanBertForQuestionAnsweringAVPooler
-    from .modeling_bert import (BertPreTrainedModel, BertModel, BertForPreTraining,
+    from .modeling_bert import (BertPreTrainedModel, BertModel, BertForPreTraining,BertForQuestionAnsweringLSTMBiDAFPooler,
                                 BertForMaskedLM, BertForNextSentencePrediction,
                                 BertForSequenceClassification, BertForMultipleChoice,
                                 BertForTokenClassification, BertForQuestionAnsweringGateMechanismAVPoolBECV3,BertForQuestionAnswering,BertForQuestionAnsweringSeqTrm,BertForQuestionAnsweringSeqSC,BertForQuestionAnsweringGateMechanismAVPool,

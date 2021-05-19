@@ -2618,19 +2618,19 @@ class BertForQuestionAnsweringLSTMBiDAFPooler(BertPreTrainedModel):
         self.bert = BertModel(config)
         
         ##[batch_size, sequence_length, hidden_size]->[batch_size, sequence_length, hidden_size*2]
-        self.context_embedding = ContextualEmbeddingLayer(config.hidden_size, config.hidden_size)
+        self.contextual_embedding = ContextualEmbeddingLayer(config.hidden_size, config.hidden_size)
         
         self.drop_out = nn.Dropout(p=config.hidden_dropout_prob)
         
         self.similarity_weight = nn.Linear(config.hidden_size*6, 1, bias=False)
         
-        self.modeling_lstm = nn.LSTM(config.hidden_size*8, emb_dim, bidirectional=True, num_layers=2, batch_first=True, dropout=0.2)
+        self.modeling_lstm = nn.LSTM(config.hidden_size*8, config.hidden_size, bidirectional=True, num_layers=2, batch_first=True, dropout=0.2)
         
         self.output_start = nn.Linear(config.hidden_size*10, 1, bias=False)
         
         self.output_end = nn.Linear(config.hidden_size*10, 1, bias=False)
         
-        self.end_lstm = nn.LSTM(config.hidden_size*2, emb_dim, bidirectional=True, batch_first=True)
+        self.end_lstm = nn.LSTM(config.hidden_size*2, config.hidden_size, bidirectional=True, batch_first=True)
         
         self.has_ans = nn.Sequential(nn.Dropout(p=config.hidden_dropout_prob), nn.Linear(config.hidden_size, 2))
 
