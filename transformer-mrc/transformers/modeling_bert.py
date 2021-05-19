@@ -2654,6 +2654,9 @@ class BertForQuestionAnsweringLSTMBiDAFPooler(BertPreTrainedModel):
         query_sequence_output, context_sequence_output, query_attention_mask, context_attention_mask = \
             split_ques_context(sequence_output, pq_end_pos)
         
+        ques_len = query_sequence_output.shape[1]
+        ctx_len = context_sequence_output.shape[1]
+        
         ctx_contextual_emb = self.contextual_embedding(context_sequence_output)
         # [bs, ctx_len, hidden_size*2]
         
