@@ -2774,7 +2774,7 @@ class BertForQuestionAnsweringSeqSCLSTMAVPooler(BertPreTrainedModel):
         self.qa_outputs_1 = nn.Linear(config.hidden_size, config.num_labels)
         
         self.lstm = nn.LSTM(config.hidden_size, config.hidden_size, bidirectional=True, num_layers=1,dropout=config.hidden_dropout_prob)
-        self.qa_final_output = nn.Linear(config.hidden_size*2, config.num_labels)
+        self.qa_outputs = nn.Linear(config.hidden_size*2, config.num_labels)
         
         
         self.has_ans = nn.Sequential(nn.Dropout(p=config.hidden_dropout_prob), nn.Linear(config.hidden_size, 2))
