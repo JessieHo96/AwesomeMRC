@@ -114,7 +114,7 @@ if is_torch_available():
         RobertaForMultipleChoice,
         RobertaForTokenClassification,
         RobertaForQuestionAnswering,
-        ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP,
+        ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP,RobertaForQuestionAnsweringAVPoolerLSTM,
     )
     from .modeling_distilbert import (DistilBertPreTrainedModel, DistilBertForMaskedLM, DistilBertModel,
                                 DistilBertForSequenceClassification, DistilBertForQuestionAnswering,

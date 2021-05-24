@@ -45,7 +45,8 @@ from transformers import (WEIGHTS_NAME, BertConfig,
                                   XLNetTokenizer,
                                   DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer,
                                   AlbertConfig, AlbertForQuestionAnsweringAVPool, AlbertTokenizer,
-                                  XLMConfig, XLMForQuestionAnswering, XLMTokenizer,
+                                  XLMConfig, XLMForQuestionAnswering, XLMTokenizer, RobertaForQuestionAnsweringAVPoolerLSTM, RobertaTokenizer,RobertaConfig
+                          
                                   )
 
 from transformers import AdamW, get_linear_schedule_with_warmup, squad_convert_examples_to_features
@@ -61,6 +62,7 @@ MODEL_CLASSES = {
     'xlm': (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
     'distilbert': (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
     'albert': (AlbertConfig, AlbertForQuestionAnsweringAVPool, AlbertTokenizer),
+    'roberta':(RobertaConfig, RobertaForQuestionAnsweringAVPoolerLSTM, RobertaTokenizer)
 }
 
 def set_seed(args):
