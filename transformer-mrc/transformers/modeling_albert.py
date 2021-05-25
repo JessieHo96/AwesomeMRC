@@ -1796,9 +1796,9 @@ class HighwayNetwork(nn.Module):
         
         return x    
     
-class RobertaForQuestionAnsweringAVPoolerLSTM(AlbertPreTrainedModel):
+class AlbertForQuestionAnsweringAVPoolerLSTM(AlbertPreTrainedModel):
     def __init__(self, config):
-        super(RobertaForQuestionAnsweringAVPoolerLSTM, self).__init__(config)
+        super(AlbertForQuestionAnsweringAVPoolerLSTM, self).__init__(config)
         
         self.config = config
         

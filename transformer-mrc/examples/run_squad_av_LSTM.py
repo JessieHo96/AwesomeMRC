@@ -44,7 +44,7 @@ from transformers import (WEIGHTS_NAME, BertConfig,
                                   XLNetForQuestionAnswering,
                                   XLNetTokenizer,
                                   DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer,
-                                  AlbertConfig, AlbertTokenizer,AlbertForQuestionAnsweringLSTMAV,
+                                  AlbertConfig, AlbertTokenizer,AlbertForQuestionAnsweringAVPoolerLSTM,
                                   XLMConfig, XLMForQuestionAnswering, XLMTokenizer, RobertaForQuestionAnsweringAVPoolerLSTM, RobertaTokenizer,RobertaConfig
                           
                                   )
