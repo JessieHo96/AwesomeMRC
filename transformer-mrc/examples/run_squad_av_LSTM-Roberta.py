@@ -44,7 +44,7 @@ from transformers import (WEIGHTS_NAME, BertConfig,
                                   XLNetForQuestionAnswering,
                                   XLNetTokenizer,
                                   DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer,
-                                  AlbertConfig, AlbertTokenizer,AlbertForQuestionAnsweringLSTMAV,
+                                  AlbertConfig, AlbertForQuestionAnsweringAVPool, AlbertTokenizer,
                                   XLMConfig, XLMForQuestionAnswering, XLMTokenizer, RobertaForQuestionAnsweringAVPoolerLSTM, RobertaTokenizer,RobertaConfig
                           
                                   )
@@ -61,7 +61,7 @@ MODEL_CLASSES = {
     'xlnet': (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
     'xlm': (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
     'distilbert': (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
-    'albert': (AlbertConfig, RobertaForQuestionAnsweringAVPoolerLSTM, AlbertTokenizer),
+    'albert': (AlbertConfig, AlbertForQuestionAnsweringAVPool, AlbertTokenizer),
     'roberta':(RobertaConfig, RobertaForQuestionAnsweringAVPoolerLSTM, RobertaTokenizer)
 }
 
@@ -144,7 +144,7 @@ def train(args, train_dataset, model, tokenizer):
                 'attention_mask':  batch[1],
                 'start_positions': batch[3],
                 'end_positions':   batch[4],
-                'is_impossibles':   batch[5]
+                'cls_idx':   batch[6]
             }
 
             if args.model_type != 'distilbert':

@@ -129,7 +129,7 @@ if is_torch_available():
                               load_tf_weights_in_t5,
                               T5_PRETRAINED_MODEL_ARCHIVE_MAP)
 
-    from .modeling_albert import (AlbertPreTrainedModel, AlbertModel, AlbertForMaskedLM, AlbertForSequenceClassification,
+    from .modeling_albert import (AlbertPreTrainedModel, AlbertModel, AlbertForMaskedLM, AlbertForSequenceClassification,RobertaForQuestionAnsweringAVPoolerLSTM,
                                 AlbertForQuestionAnswering,AlbertForQuestionAnsweringAV,AlbertForQuestionAnsweringCLS,AlbertForQuestionAnsweringAVPool,AlbertForQuestionAnsweringAVReg,
                                   AlbertForQuestionAnsweringAVPoolBCE,
                                   AlbertForQuestionAnsweringAVPoolBCEv3,
